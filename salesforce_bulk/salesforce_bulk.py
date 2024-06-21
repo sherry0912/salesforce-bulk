@@ -478,11 +478,17 @@ class SalesforceBulk(object):
         if not result_ids:
             raise RuntimeError('Batch is not complete')
         for result_id in result_ids:
-            yield self.get_query_batch_results(
+            # yield self.get_query_batch_results(
+            #     batch_id,
+            #     result_id,
+            #     job_id=job_id,
+            #     chunk_size=chunk_size
+            # )
+            # SZY
+            yield self.get_query_batch_results_content(
                 batch_id,
                 result_id,
-                job_id=job_id,
-                chunk_size=chunk_size
+                job_id=job_id
             )
 
     def get_query_batch_results(self, batch_id, result_id, job_id=None, chunk_size=2048, raw=False):
@@ -501,7 +507,23 @@ class SalesforceBulk(object):
 
         iter = (x.replace(b'\0', b'') for x in resp.iter_content(chunk_size=chunk_size))
         return util.IteratorBytesIO(iter)
+    
+    # SZY
+    def get_query_batch_results_content(self, batch_id, result_id, job_id=None):
+        job_id = job_id or self.lookup_job_id(batch_id)
 
+        uri = urlparse.urljoin(
+            self.endpoint + "/",
+            "job/{0}/batch/{1}/result/{2}".format(
+                job_id, batch_id, result_id),
+        )
+
+        resp = requests.get(uri, headers=self.headers(), stream=True)
+        self.check_status(resp)
+
+        return resp.content
+
+    
     def get_batch_results(self, batch_id, job_id=None):
         job_id = job_id or self.lookup_job_id(batch_id)
 
